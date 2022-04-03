@@ -14,6 +14,19 @@ void thermreg_avr_cycle(thermreg_avr_t* pr)
 	// calculate regulation
 	int16_t err = pr->Tt - pr->Tc; // regulation error
 	int32_t out = err * pr->kP; // calculate output power (proportional part)
+
+	//err /= 16;
+	if (pr->shre > 0)
+	{
+		if (err >= 0) // is positive?
+			err >>= pr->shre; // do right shift
+		else
+			err = ~(~err >> pr->shre); // complement - right shift - complement
+	}
+
+	if (err > 127) err = 127;
+	else if (err < -127) err = -127;
+
 	// put error value into ring buffer and calculate sum of all values in buffer (ebufs)
 	if (pr->ebufc < pr->ebufl) // error buffer is not full?
 		pr->ebufc++;  // increment count
@@ -23,10 +36,22 @@ void thermreg_avr_cycle(thermreg_avr_t* pr)
 	pr->ebufs += err; // add new value to error buffer sum
 	pr->ebufi = (pr->ebufi + 1) % pr->ebufl; // increment index
 	int32_t out_i = pr->ebufs * -pr->kIneg; // calculate output power (integration part)
-	if (out_i >= 0) // is positive?
-		out_i >>= pr->shre; // do right shift
-	else
-		out_i = ~(~out_i >> pr->shre); // complement - right shift - complement
+	if (pr->sh_i < 0)
+	{
+		if (out_i >= 0) // is positive?
+			out_i <<= -pr->sh_i; // do right shift
+		else
+			out_i = ~(~out_i << -pr->sh_i); // complement - left shift - complement
+	}
+	else if (pr->sh_i > 0)
+	{
+		if (out_i >= 0) // is positive?
+			out_i >>= pr->sh_i; // do right shift
+		else
+			out_i = ~(~out_i >> pr->sh_i); // complement - right shift - complement
+	}
+	pr->out_p = out / (1 << pr->shro);
+	pr->out_i = out_i / (1 << pr->shro);
 	out += out_i; // add to output power
 	if (out < 0) out = 0; // limit negative output power
 	out >>= pr->shro; // do right shift

@@ -37,8 +37,11 @@ typedef struct
 	uint8_t ebufl;   // length of error buffer
 	uint8_t P;       // current output power (0-255 = 0-100% of maximum power)
 	int8_t error;    // regulator error (thermreg_avr_error_t)
-	uint8_t shre:4;  // right shift of ebufs * kI
-	uint8_t shro:4;  // right shift of output
+	int8_t shre;     // right shift of err
+	int8_t sh_i;     // left(-) or right(+) shift of ebufs * kI (value -8..7)
+	uint8_t shro;    // right shift of output (value 0..7)
+	int32_t out_p;
+	int32_t out_i;
 } thermreg_avr_t;
 
 
